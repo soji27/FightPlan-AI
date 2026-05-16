@@ -43,7 +43,7 @@ Utilisateur
          ▼                 ▼
   ┌────────────┐    ┌──────────────┐
   │  ChromaDB  │    │    Ollama    │
-  │ (vectordb) │    │  Llama 3.1  │
+  │ (vectordb) │    │ llama3.2:3b │
   └────────────┘    └──────────────┘
 ```
 
@@ -62,7 +62,7 @@ Utilisateur
 | Composant | Technologie | Rôle |
 |-----------|-------------|------|
 | Orchestration | LangGraph | Routage multi-agents via StateGraph |
-| LLM | Ollama + Llama 3.1 | Génération de réponses en langage naturel |
+| LLM | Ollama + llama3.2:3b | Génération de réponses en langage naturel |
 | VectorDB | ChromaDB | Recherche sémantique sur 6 012 combats |
 | Embeddings | nomic-embed-text | Vectorisation des chunks CSV |
 | Analyse données | Pandas | Calcul de stats, détection de patterns |
@@ -110,7 +110,8 @@ mma-gameplan/
 ├── vectordb/                   # Volume persistant ChromaDB
 │
 └── tests/
-    ├── rag_tests.md            # Cas nominal / limite / erreur
+    ├── rag_tests.md            # Cas nominal / limite / erreur (Agent RAG)
+    ├── tools_tests.md          # Cas nominal / limite / erreur (Agent Outils)
     └── security.md             # Matrice de risques + tests injection
 ```
 
@@ -133,7 +134,7 @@ Le fichier `ufc_data.csv` contient **6 012 combats UFC** avec pour chaque fight 
 ### Prérequis
 
 - Docker Desktop installé et lancé
-- 8 Go de RAM minimum (Llama 3.1 = ~5 Go)
+- 4 Go de RAM minimum (llama3.2:3b = ~2 Go)
 - 15 Go d'espace disque libre
 
 ### Démarrage en 5 étapes
@@ -148,8 +149,8 @@ cp .env.example .env
 # 3. Lancer tous les services Docker
 docker compose up -d
 
-# 4. Télécharger les modèles Ollama (une seule fois, ~5 Go)
-docker exec fightplan-ollama ollama pull llama3.1
+# 4. Télécharger les modèles Ollama (une seule fois, ~3 Go)
+docker exec fightplan-ollama ollama pull llama3.2:3b
 docker exec fightplan-ollama ollama pull nomic-embed-text
 
 # 5. Ingérer les données dans ChromaDB (une seule fois)
@@ -281,7 +282,7 @@ Matrice de 5 menaces avec vecteurs d'attaque, contre-mesures implémentées et t
 |----------|--------|-------------|
 | `OLLAMA_HOST` | `http://localhost:11434` | URL du service Ollama |
 | `CHROMA_HOST` | `http://localhost:8000` | URL du service ChromaDB |
-| `OLLAMA_MODEL` | `llama3.1` | Modèle LLM utilisé |
+| `OLLAMA_MODEL` | `llama3.2:3b` | Modèle LLM utilisé |
 | `EMBED_MODEL` | `nomic-embed-text` | Modèle d'embeddings |
 | `CSV_PATH` | `./data/fighters/ufc_data.csv` | Chemin vers les données |
 | `MAX_INPUT_LENGTH` | `2000` | Limite de caractères en entrée |
@@ -295,7 +296,7 @@ Matrice de 5 menaces avec vecteurs d'attaque, contre-mesures implémentées et t
 langgraph>=0.1.0          # Orchestration multi-agents
 langchain>=0.2.0           # Framework LLM
 chromadb>=0.5.0            # Base vectorielle
-ollama>=0.2.0              # Client Ollama (Llama 3.1 + nomic-embed-text)
+ollama>=0.2.0              # Client Ollama (llama3.2:3b + nomic-embed-text)
 pandas>=2.0.0              # Analyse des données CSV
 streamlit>=1.35.0          # Interface web
 fpdf2>=2.7.0               # Génération PDF
