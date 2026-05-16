@@ -59,8 +59,66 @@ class ToolsAgent:
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
+            options={"num_predict": 400, "temperature": 0.3},
         )
         return response["message"]["content"]
+
+    def _build_context(self, raw_results: Dict[str, Any]) -> str:
+        """Build a concise text summary from tool results (faster than raw JSON)."""
+        parts = []
+
+        fa = raw_results.get("fighter_analysis")
+        if fa and fa.get("found"):
+            rec = fa.get("record", {})
+            prof = fa.get("profile", {})
+            stk = fa.get("striking", {})
+            grp = fa.get("grappling", {})
+            parts.append(
+                f"Fighter: {fa['fighter']}\n"
+                f"Record: {rec.get('wins', 0)}W-{rec.get('losses', 0)}L "
+                f"({rec.get('total_fights', 0)} fights in dataset), "
+                f"win streak: {rec.get('current_win_streak', 0)}\n"
+                f"Class: {prof.get('weight_class', '?')}, Stance: {prof.get('stance', '?')}, "
+                f"Height: {prof.get('height_cms', '?')} cm, Reach: {prof.get('reach_cms', '?')} cm\n"
+                f"Striking: accuracy {stk.get('avg_sig_str_accuracy_pct', 0):.1%}, "
+                f"KDs {stk.get('avg_knockdowns', 0):.2f}/fight\n"
+                f"Grappling: TD accuracy {grp.get('avg_td_accuracy_pct', 0):.1%}, "
+                f"TDs landed {grp.get('avg_td_landed', 0):.2f}/fight, "
+                f"subs {grp.get('avg_submission_attempts', 0):.2f}/fight, "
+                f"ctrl {grp.get('avg_ctrl_time_seconds', 0):.0f}s/fight"
+            )
+
+        pat = raw_results.get("patterns")
+        if pat and pat.get("found"):
+            parts.append(
+                f"Style: {pat.get('style', '?')}, "
+                f"finishing rate: {pat.get('finishing_rate', 0):.1%}, "
+                f"decision rate: {pat.get('decision_rate', 0):.1%}\n"
+                f"Summary: {pat.get('tactical_summary', '')}"
+            )
+
+        comp = raw_results.get("comparison")
+        if comp and comp.get("found"):
+            f1 = comp.get("fighter1", {})
+            f2 = comp.get("fighter2", {})
+            parts.append(
+                f"Comparison: {f1.get('name')} vs {f2.get('name')}\n"
+                + json.dumps(comp.get("deltas", {}), ensure_ascii=False)
+            )
+            if f1.get("weaknesses"):
+                parts.append(f"Weaknesses {f1['name']}: {', '.join(f1['weaknesses'])}")
+            if f2.get("weaknesses"):
+                parts.append(f"Weaknesses {f2['name']}: {', '.join(f2['weaknesses'])}")
+
+        web = raw_results.get("web_search")
+        if web:
+            parts.append(f"Web results: {str(web)[:800]}")
+
+        msg = raw_results.get("message")
+        if msg and not parts:
+            parts.append(f"Info: {msg}")
+
+        return "\n\n".join(parts) if parts else "No data available."
 
     def _decide_tools(self, question: str) -> Dict[str, bool]:
         """Determine which tool(s) to use based on question content.
@@ -79,31 +137,34 @@ class ToolsAgent:
         return {"use_stats": use_stats, "use_web": use_web}
 
     def _extract_fighter_names(self, question: str) -> list:
-        """Simple heuristic to extract potential fighter names from the question."""
-        # Use search to find fighters mentioned
+        """Extract fighter names from the question using CSV fuzzy search."""
         words = question.split()
         potential_names = []
 
-        # Look for capitalized word pairs (likely names)
+        # Try 2-word combinations (works for "Khabib Nurmagomedov", "Jon Jones", etc.)
         for i in range(len(words) - 1):
-            w1, w2 = words[i], words[i + 1]
-            if w1 and w2 and w1[0].isupper() and w2[0].isupper():
-                candidate = f"{w1} {w2}"
-                # Clean punctuation
-                candidate = candidate.strip(".,?!:;")
-                matches = self.stats_analyzer.search_fighters(candidate)
-                if matches:
+            w1 = words[i].strip(".,?!:;'\"")
+            w2 = words[i + 1].strip(".,?!:;'\"")
+            if len(w1) >= 2 and len(w2) >= 2:
+                matches = self.stats_analyzer.search_fighters(f"{w1} {w2}")
+                if matches and matches[0] not in potential_names:
                     potential_names.append(matches[0])
 
-        # Also try single capitalized words
+        # Track word parts already covered by found names
+        found_words = set()
+        for name in potential_names:
+            for part in name.lower().split():
+                found_words.add(part)
+
+        # Try single words (any case, len >= 4) not already covered
         for w in words:
-            w_clean = w.strip(".,?!:;")
-            if w_clean and w_clean[0].isupper() and len(w_clean) > 3:
+            w_clean = w.strip(".,?!:;'\"")
+            if len(w_clean) >= 4 and w_clean.lower() not in found_words:
                 matches = self.stats_analyzer.search_fighters(w_clean)
                 if matches and matches[0] not in potential_names:
                     potential_names.append(matches[0])
 
-        return list(dict.fromkeys(potential_names))[:3]  # Deduplicate, max 3
+        return list(dict.fromkeys(potential_names))[:3]
 
     def run(self, question: str, history: str = "") -> Dict[str, Any]:
         """Run the tools agent pipeline.
@@ -157,23 +218,16 @@ class ToolsAgent:
 
             tool_used_str = " + ".join(tools_used) if tools_used else "none"
 
-            # Build synthesis prompt
+            # Build concise synthesis prompt
             history_section = f"\n{history}\n" if history else ""
-            results_text = json.dumps(raw_results, ensure_ascii=False, indent=2, default=str)
+            context_text = self._build_context(raw_results)
 
-            prompt = f"""{history_section}
-
-Tool results:
-{results_text[:3000]}
+            prompt = f"""{history_section}Data (source: ufc_data.csv):
+{context_text}
 
 Question: {question}
 
-Instructions:
-- Answer the question using the tool results above.
-- Present statistics clearly and cite the data source (ufc_data.csv) where applicable.
-- If comparing fighters, highlight key differences and tactical implications.
-- Identify any weaknesses or tactical opportunities.
-- If data is missing or insufficient, say so explicitly."""
+Answer concisely in the same language as the question. Cite ufc_data.csv as source."""
 
             answer = self._call_llm(prompt)
             print(f"[Final] → {answer[:100]}...")

@@ -108,16 +108,27 @@ class StatsAnalyzer:
         name_lower = fighter_name.strip().lower()
 
         # Determine wins and losses
+        # Winner column contains "Red" or "Blue", not fighter name
         total_fights = len(rows)
-        wins = int((rows["Winner"].str.lower().str.strip() == name_lower).sum()) if "Winner" in rows.columns else 0
+        wins = 0
+        if "Winner" in rows.columns:
+            for _, row in rows.iterrows():
+                winner = _safe_str(row.get("Winner", "")).strip()
+                r_name = _safe_str(row.get("R_fighter", "")).strip().lower()
+                if r_name == name_lower and winner == "Red":
+                    wins += 1
+                elif r_name != name_lower and winner == "Blue":
+                    wins += 1
         losses = total_fights - wins
 
-        # Win streak
+        # Win streak (most recent first)
         sorted_rows = rows.sort_values("date", ascending=False) if "date" in rows.columns else rows
         win_streak = 0
         for _, row in sorted_rows.iterrows():
-            w = _safe_str(row.get("Winner", "")).lower()
-            if w == name_lower:
+            winner = _safe_str(row.get("Winner", "")).strip()
+            r_name = _safe_str(row.get("R_fighter", "")).strip().lower()
+            is_win = (r_name == name_lower and winner == "Red") or (r_name != name_lower and winner == "Blue")
+            if is_win:
                 win_streak += 1
             else:
                 break
@@ -360,12 +371,20 @@ class StatsAnalyzer:
 
         # Finishing rate (wins by KO or submission vs total wins)
         total_fights = len(rows)
-        wins = int((rows["Winner"].str.lower().str.strip() == name_lower).sum()) if "Winner" in rows.columns else 0
+        wins = 0
+        win_indices = []
+        if "Winner" in rows.columns:
+            for idx, row in rows.iterrows():
+                winner = _safe_str(row.get("Winner", "")).strip()
+                r_name = _safe_str(row.get("R_fighter", "")).strip().lower()
+                if (r_name == name_lower and winner == "Red") or (r_name != name_lower and winner == "Blue"):
+                    wins += 1
+                    win_indices.append(idx)
 
         # Check finish method columns if available
         finishes = 0
-        if "win_by" in rows.columns:
-            win_rows = rows[rows["Winner"].str.lower().str.strip() == name_lower]
+        if "win_by" in rows.columns and win_indices:
+            win_rows = rows.loc[win_indices]
             finishes = int(win_rows["win_by"].str.lower().isin(["ko/tko", "submission"]).sum())
         finishing_rate = round(finishes / wins, 3) if wins > 0 else 0.0
 

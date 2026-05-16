@@ -14,11 +14,8 @@ load_dotenv()
 # ── Keywords for routing ─────────────────────────────────────────────────────
 
 _RAG_KEYWORDS = [
-    "stats", "historique", "palmarès", "combat", "record", "défaite",
-    "victoire", "faille", "faiblesse", "a gagné", "a perdu", "csv",
-    "données", "data", "fights", "wins", "losses", "history",
-    "performance", "précision", "accuracy", "knockdown", "submission",
-    "average", "moyenne",
+    "historique", "palmarès", "a gagné", "a perdu", "csv",
+    "données", "data", "history", "average", "moyenne",
 ]
 
 _TOOLS_KEYWORDS = [
@@ -26,6 +23,11 @@ _TOOLS_KEYWORDS = [
     "pattern", "tendance", "dernier combat", "prochain", "recent",
     "latest", "next", "upcoming", "calculate", "trend", "style",
     "web", "internet",
+    # Toute question sur un fighter spécifique → stats_analyzer (recherche directe CSV)
+    "parle", "qui est", "tell me", "stats", "record", "bilan",
+    "victoire", "défaite", "wins", "losses", "faille", "faiblesse",
+    "précision", "takedown", "submission", "knockdown", "performance",
+    "style", "fight", "combat", "analyse",
 ]
 
 
