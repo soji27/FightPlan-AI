@@ -1,0 +1,46 @@
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+*.env.local
+*.env.production
+*.key
+*.pem
+secrets/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.python-version
+
+# ── Docker volumes (données locales, pas dans le repo) ───────────────────────
+vectordb/
+ollama_data/
+
+# ── Outputs générés ──────────────────────────────────────────────────────────
+output/*.pdf
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.local
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs & tmp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.bak
