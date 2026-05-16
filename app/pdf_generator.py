@@ -54,7 +54,7 @@ class GamePlanPDF(FPDF):
         """Add a weakness bullet point."""
         self.set_font("Helvetica", "", 10)
         self.set_text_color(180, 0, 0)
-        self.cell(10, 6, "  •")
+        self.cell(10, 6, "  -")
         self.set_text_color(0, 0, 0)
         self.multi_cell(0, 6, text)
 
@@ -220,7 +220,7 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
         pass
 
     for strategy in strategies:
-        pdf.body_text(f"• {strategy}")
+        pdf.body_text(f"- {strategy}")
 
     pdf.ln(4)
 

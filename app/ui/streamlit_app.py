@@ -76,8 +76,13 @@ def generate_pdf_for_fighter(fighter_name: str):
         from app.pdf_generator import generate_game_plan
 
         analyzer = StatsAnalyzer()
-        analysis = analyzer.analyze_fighter(fighter_name)
-        patterns = analyzer.detect_patterns(fighter_name)
+
+        # Resolve partial name to full name (e.g. "Khabib" -> "Khabib Nurmagomedov")
+        matches = analyzer.search_fighters(fighter_name.strip())
+        resolved_name = matches[0] if matches else fighter_name.strip()
+
+        analysis = analyzer.analyze_fighter(resolved_name)
+        patterns = analyzer.detect_patterns(resolved_name)
 
         if not analysis.get("found"):
             st.error(f"Fighter '{fighter_name}' non trouvé dans les données.")
@@ -107,7 +112,7 @@ def generate_pdf_for_fighter(fighter_name: str):
             pass
 
         output_dir = os.path.join(os.path.dirname(__file__), "..", "..", "output")
-        pdf_path = generate_game_plan(fighter_name, combined, output_dir)
+        pdf_path = generate_game_plan(resolved_name, combined, output_dir)
         st.session_state.last_pdf_path = os.path.abspath(pdf_path)
         st.success(f"Game plan PDF généré!")
 
