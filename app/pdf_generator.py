@@ -136,7 +136,7 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
         try:
             if float(td_pct) < 0.35:
                 auto_weaknesses.append(
-                    f"Faible taux de réussite des takedowns ({float(td_pct):.1%}) — "
+                    f"Faible taux de réussite des takedowns ({float(td_pct):.1%})  - "
                     f"vulnérable aux sprawls [source: ufc_data.csv, données agrégées]"
                 )
         except (TypeError, ValueError):
@@ -146,7 +146,7 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
         try:
             if float(ctrl) < 30:
                 auto_weaknesses.append(
-                    f"Temps de contrôle au sol limité ({float(ctrl):.0f}s en moyenne) — "
+                    f"Temps de contrôle au sol limité ({float(ctrl):.0f}s en moyenne)  - "
                     f"dominance grappling limitée [source: ufc_data.csv, données agrégées]"
                 )
         except (TypeError, ValueError):
@@ -156,7 +156,7 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
         try:
             if float(kd) < 0.1:
                 auto_weaknesses.append(
-                    f"Peu de knockdowns marqués ({float(kd):.2f} en moyenne) — "
+                    f"Peu de knockdowns marqués ({float(kd):.2f} en moyenne)  - "
                     f"menace KO limitée [source: ufc_data.csv, données agrégées]"
                 )
         except (TypeError, ValueError):
@@ -200,7 +200,7 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
         )
     else:
         strategies.append(
-            "Combat polyvalent — adapter la stratégie en fonction des opportunités. "
+            "Combat polyvalent  - adapter la stratégie en fonction des opportunités. "
             "Analyser les patterns de distance préférée (guard/clinch/distance)."
         )
 
@@ -208,12 +208,12 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
     try:
         if float(finishing_rate) > 0.6:
             strategies.append(
-                f"Taux de finish élevé ({float(finishing_rate):.1%}) — "
+                f"Taux de finish élevé ({float(finishing_rate):.1%})  - "
                 "ne pas s'exposer inutilement, gérer la garde en permanence."
             )
         elif float(finishing_rate) < 0.3:
             strategies.append(
-                f"Faible taux de finish ({float(finishing_rate):.1%}) — "
+                f"Faible taux de finish ({float(finishing_rate):.1%})  - "
                 "le combat ira probablement aux juges, gérer les points et le volume."
             )
     except (TypeError, ValueError):
@@ -262,7 +262,7 @@ def generate_game_plan(fighter_name: str, analysis: Dict[str, Any], output_dir: 
     pdf.set_text_color(100, 100, 100)
     pdf.multi_cell(
         0, 5,
-        "Sources: Toutes les statistiques proviennent de [source: ufc_data.csv] — "
+        "Sources: Toutes les statistiques proviennent de [source: ufc_data.csv]  - "
         "données historiques UFC agrégées sur l'ensemble de la carrière du combattant."
     )
     pdf.set_text_color(0, 0, 0)
