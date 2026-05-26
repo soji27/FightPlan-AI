@@ -56,23 +56,23 @@ class WebSearchTool:
             return []
 
         try:
-            from duckduckgo_search import DDGS
+            try:
+                from ddgs import DDGS
+            except ImportError:
+                from duckduckgo_search import DDGS
 
             results = []
             with DDGS() as ddgs:
-                for r in ddgs.text(validated_query, max_results=max_results):
+                for r in ddgs.text(validated_query, max_results=max_results, region="wt-wt"):
                     results.append({
                         "title": r.get("title", ""),
                         "url": r.get("href", r.get("url", "")),
                         "snippet": r.get("body", r.get("snippet", "")),
                     })
 
-            print(f"[Outil] web_search appelé → résultat brut: {json.dumps(results, ensure_ascii=False)}")
+            print(f"[Outil] web_search appelé → {len(results)} résultats pour: '{validated_query}'")
             return results
 
-        except ImportError:
-            print("[Outil] web_search ERROR: duckduckgo_search not installed")
-            return []
         except Exception as exc:
             print(f"[Outil] web_search ERROR: {exc}")
             return []
@@ -86,7 +86,7 @@ class WebSearchTool:
         Returns:
             Formatted string with search results, or error message.
         """
-        mma_query = f"MMA UFC {query}"
+        mma_query = query if "ufc" in query.lower() else f"UFC {query}"
         results = self.search(mma_query, max_results=5)
 
         if not results:

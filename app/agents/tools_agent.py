@@ -112,7 +112,7 @@ class ToolsAgent:
 
         web = raw_results.get("web_search")
         if web:
-            parts.append(f"Web results: {str(web)[:800]}")
+            parts.append(f"RECENT WEB INFORMATION (use this for anything after 2021):\n{str(web)[:2000]}")
 
         msg = raw_results.get("message")
         if msg and not parts:
@@ -166,6 +166,49 @@ class ToolsAgent:
 
         return list(dict.fromkeys(potential_names))[:3]
 
+    def _extract_name_from_question(self, question: str) -> str:
+        """Extract fighter name directly from capitalized words in the question.
+        Used as fallback when the CSV fuzzy search returns a wrong match.
+        """
+        _SKIP = {"qui", "quel", "quelle", "quels", "quelles", "comment", "pourquoi",
+                 "quand", "est", "sont", "le", "la", "les", "un", "une", "des",
+                 "du", "de", "da", "di", "what", "who", "when", "where", "how",
+                 "the", "is", "are", "next", "last", "fight", "prochain", "dernier"}
+        caps = []
+        for w in question.split():
+            clean = w.strip(".,?!:;'\"")
+            if clean and clean[0].isupper() and clean.lower() not in _SKIP and len(clean) > 2:
+                caps.append(clean)
+        return " ".join(caps[:3])
+
+    def _build_english_web_query(self, question: str, fighter_names: list) -> str:
+        """Build a simple English search query for DuckDuckGo."""
+        q = question.lower()
+
+        # Get the fighter name — ALL parts of the name must appear in the question
+        name = ""
+        if fighter_names:
+            candidate = fighter_names[0]
+            parts = [p for p in candidate.split() if len(p) > 3]
+            if parts and all(p.lower() in q for p in parts):
+                name = candidate
+        if not name:
+            name = self._extract_name_from_question(question)
+
+        if not name:
+            return question
+
+        # Simple, short queries work best with DuckDuckGo
+        if any(k in q for k in ["prochain", "next", "upcoming", "prévu", "adversaire"]):
+            return f"{name} next fight UFC"
+        if any(k in q for k in ["dernier", "last", "récent", "recent"]):
+            return f"{name} UFC last fight result"
+        if any(k in q for k in ["retraite", "retirement"]):
+            return f"{name} UFC retirement"
+        if any(k in q for k in ["blessure", "injury"]):
+            return f"{name} UFC injury"
+        return f"{name} UFC"
+
     def run(self, question: str, history: str = "") -> Dict[str, Any]:
         """Run the tools agent pipeline.
 
@@ -211,9 +254,13 @@ class ToolsAgent:
 
             # --- Web Search ---
             if tool_decisions["use_web"]:
-                web_results = self.web_search.search_mma(question)
+                # Build English query for better results
+                if not tool_decisions["use_stats"]:
+                    fighter_names = self._extract_fighter_names(question)
+                web_query = self._build_english_web_query(question, fighter_names)
+                web_results = self.web_search.search_mma(web_query)
                 raw_results["web_search"] = web_results
-                print(f"[Outil] web_search appelé → résultat brut: {json.dumps({'result_length': len(web_results)}, ensure_ascii=False)}")
+                print(f"[Outil] web_search appelé (query: '{web_query}') → résultat brut: {json.dumps({'result_length': len(web_results)}, ensure_ascii=False)}")
                 tools_used.append("web_search")
 
             tool_used_str = " + ".join(tools_used) if tools_used else "none"
@@ -222,12 +269,24 @@ class ToolsAgent:
             history_section = f"\n{history}\n" if history else ""
             context_text = self._build_context(raw_results)
 
-            prompt = f"""{history_section}Data (source: ufc_data.csv):
+            has_web = bool(raw_results.get("web_search"))
+
+            if has_web:
+                source_instruction = (
+                    "IMPORTANT: The section 'RECENT WEB INFORMATION' above contains live web results — "
+                    "use it to answer questions about upcoming fights, recent events, or anything after 2021. "
+                    "Cite the web URLs as source for recent info, and ufc_data.csv for historical stats."
+                )
+            else:
+                source_instruction = "Cite ufc_data.csv as source."
+
+            prompt = f"""{history_section}Available data:
 {context_text}
 
 Question: {question}
 
-Answer concisely in the same language as the question. Cite ufc_data.csv as source."""
+Answer in the same language as the question. {source_instruction}
+The CSV data covers fights up to 2021 only. For anything more recent, rely on the web results above."""
 
             answer = self._call_llm(prompt)
             print(f"[Final] → {answer[:100]}...")
